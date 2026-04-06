@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DJ Vote - Dashboard DJ</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: #000000;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-anim {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyA6EwZSO7OZVYbrJBJdFntoIteKTfXARSE",
+            authDomain: "dj-vote.firebaseapp.com",
+            databaseURL: "https://dj-vote-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "dj-vote",
+            storageBucket: "dj-vote.firebasestorage.app",
+            messagingSenderId: "587965580446",
+            appId: "1:587965580446:web:837a8b404547e44ea1278f"
+        };
+
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Music = () => (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+        );
+
+        const Play = () => (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+            </svg>
+        );
+
+        const QRCodeIcon = () => (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+        );
+
+        const initialPlaylist = [
+            { id: 1, title: "Blinding Lights", artist: "The Weeknd", genre: "Pop", spotifyUri: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b" },
+            { id: 2, title: "Save Your Tears", artist: "The Weeknd", genre: "Pop", spotifyUri: "spotify:track:5QO79kh1waicV47BqGRL3g" },
+            { id: 3, title: "Levitating", artist: "Dua Lipa", genre: "Pop", spotifyUri: "spotify:track:463CkQjx2Zk1yXoBuierM9" },
+            { id: 4, title: "Heat Waves", artist: "Glass Animals", genre: "Indie", spotifyUri: "spotify:track:02MWAaffLxlfxAUY7c5dvx" },
+            { id: 5, title: "Starboy", artist: "The Weeknd ft. Daft Punk", genre: "R&B", spotifyUri: "spotify:track:7MXVkk9YMctZqd1Srtv4MB" },
+            { id: 6, title: "One Dance", artist: "Drake ft. Wizkid", genre: "Hip-Hop", spotifyUri: "spotify:track:12VozP18fJ8vtrXNOczg0T" },
+            { id: 7, title: "Shape of You", artist: "Ed Sheeran", genre: "Pop", spotifyUri: "spotify:track:7qiZfU4dY1lWllzX7mPBIp" },
+            { id: 8, title: "Rockstar", artist: "Post Malone ft. 21 Savage", genre: "Hip-Hop", spotifyUri: "spotify:track:0e7ipj03S05BNilyu5bpzt" },
+            { id: 9, title: "Closer", artist: "The Chainsmokers ft. Halsey", genre: "EDM", spotifyUri: "spotify:track:7BKLCZ1jbUBVqRi2FVlTVw" },
+            { id: 10, title: "Don't Start Now", artist: "Dua Lipa", genre: "Pop", spotifyUri: "spotify:track:3PfIrDoz19wz7qK7tYeu62" },
+            { id: 11, title: "Watermelon Sugar", artist: "Harry Styles", genre: "Pop", spotifyUri: "spotify:track:6UelLqGlWMcVH1E5c4H7lY" },
+            { id: 12, title: "As It Was", artist: "Harry Styles", genre: "Pop", spotifyUri: "spotify:track:4Dvkj6JhhA12EX05fT7y2e" },
+            { id: 13, title: "Bad Guy", artist: "Billie Eilish", genre: "Pop", spotifyUri: "spotify:track:2Fxmhks0bxGSBdJ92vM42m" },
+            { id: 14, title: "Therefore I Am", artist: "Billie Eilish", genre: "Pop", spotifyUri: "spotify:track:54bFM56PmE4YLRnqpW6Tha" },
+            { id: 15, title: "Peaches", artist: "Justin Bieber ft. Daniel Caesar", genre: "R&B", spotifyUri: "spotify:track:4iJyoBOLtHqaGxP12qzhQI" },
+            { id: 16, title: "Stay", artist: "The Kid LAROI & Justin Bieber", genre: "Pop", spotifyUri: "spotify:track:5PjdY0CKGZdEuoNab3yDmX" },
+            { id: 17, title: "Good 4 U", artist: "Olivia Rodrigo", genre: "Pop Rock", spotifyUri: "spotify:track:4ZtFanR9U6ndgddUvNcjcG" },
+            { id: 18, title: "drivers license", artist: "Olivia Rodrigo", genre: "Pop", spotifyUri: "spotify:track:5wANPM4fQCJwkGd4rN57mH" },
+            { id: 19, title: "Montero", artist: "Lil Nas X", genre: "Hip-Hop", spotifyUri: "spotify:track:67BtfxlNbhBmCDR2L2l8qd" },
+            { id: 20, title: "Industry Baby", artist: "Lil Nas X ft. Jack Harlow", genre: "Hip-Hop", spotifyUri: "spotify:track:5Z9KJZvQzH6PFmb8SNkxuk" },
+        ];
+
+        const DJApp = () => {
+            const [currentParty, setCurrentParty] = useState(null);
+            const [partyCode, setPartyCode] = useState('');
+            const [partyName, setPartyName] = useState('');
+            const [songs, setSongs] = useState([]);
+            const [qrCodeUrl, setQrCodeUrl] = useState('');
+            const [showQR, setShowQR] = useState(false);
+            const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
+
+            // Écouter les changements Firebase
+            useEffect(() => {
+                if (!partyCode) return;
+
+                const partyRef = firebase.database().ref(`parties/${partyCode}`);
+                partyRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        setCurrentParty(data);
+                        setSongs(data.songs || []);
+                    }
+                });
+
+                return () => partyRef.off();
+            }, [partyCode]);
+
+            const generateCode = () => {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let code = '';
+                for (let i = 0; i < 6; i++) {
+                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return code;
+            };
+
+            const createParty = async () => {
+                const code = generateCode();
+                const songsWithVotes = initialPlaylist.map(song => ({ ...song, votes: 0 }));
+
+                const partyData = {
+                    code: code,
+                    name: partyName || 'Soirée DJ',
+                    createdAt: new Date().toISOString(),
+                    songs: songsWithVotes,
+                    totalVotes: 0
+                };
+
+                try {
+                    await firebase.database().ref(`parties/${code}`).set(partyData);
+                    setCurrentParty(partyData);
+                    setPartyCode(code);
+                    setSongs(songsWithVotes);
+                    
+                    // Générer QR code
+                    const baseUrl = window.location.href.split('?')[0].replace('dj-vote-dj', 'dj-vote-guest');
+                    const url = `${baseUrl}?code=${code}`;
+                    const qrCode = await QRCode.toDataURL(url, {
+                        width: 400,
+                        margin: 2,
+                        color: {
+                            dark: '#1DB954',
+                            light: '#000000'
+                        }
+                    });
+                    setQrCodeUrl(qrCode);
+                    setShowQR(true);
+                } catch (error) {
+                    console.error('Erreur création:', error);
+                    alert('Erreur lors de la création de la soirée');
+                }
+            };
+
+            const playOnSpotify = (song) => {
+                window.open(`https://open.spotify.com/track/${song.spotifyUri.split(':')[2]}`, '_blank');
+                setCurrentlyPlaying(song.id);
+            };
+
+            const endParty = async () => {
+                if (confirm('Terminer la soirée ? Les votes seront perdus.')) {
+                    try {
+                        await firebase.database().ref(`parties/${partyCode}`).remove();
+                        setCurrentParty(null);
+                        setPartyCode('');
+                        setSongs([]);
+                        setQrCodeUrl('');
+                    } catch (error) {
+                        console.error('Erreur:', error);
+                    }
+                }
+            };
+
+            const sortedSongs = [...songs].sort((a, b) => b.votes - a.votes);
+            const totalVotes = currentParty?.totalVotes || 0;
+
+            // Écran de création
+            if (!currentParty) {
+                return (
+                    <div className="min-h-screen bg-black flex items-center justify-center p-6">
+                        <div className="max-w-lg w-full">
+                            <div className="text-center mb-8">
+                                <div className="inline-flex bg-gradient-to-br from-green-400 to-green-600 p-6 rounded-3xl shadow-2xl mb-6">
+                                    <Music />
+                                </div>
+                                <h1 className="text-4xl font-black text-white mb-2">Dashboard DJ</h1>
+                                <p className="text-gray-400">Crée une soirée et génère un QR code pour tes invités</p>
+                            </div>
+
+                            <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
+                                <label className="block text-gray-400 text-sm font-semibold mb-2">
+                                    Nom de la soirée
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: Soirée du Samedi"
+                                    value={partyName}
+                                    onChange={(e) => setPartyName(e.target.value)}
+                                    className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border-2 border-gray-700 focus:border-green-500 focus:outline-none mb-6"
+                                />
+
+                                <button
+                                    onClick={createParty}
+                                    className="w-full bg-green-500 text-black font-bold py-4 rounded-xl hover:bg-green-400 transition-all"
+                                >
+                                    Créer la soirée
+                                </button>
+
+                                <div className="mt-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                                    <p className="text-green-400 text-sm">
+                                        📱 Un code et un QR code seront générés pour que tes invités puissent voter
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Dashboard DJ
+            return (
+                <div className="min-h-screen bg-black">
+                    {/* Header */}
+                    <div className="bg-gradient-to-b from-green-900 to-black pt-6 pb-4 px-6 sticky top-0 z-50 border-b border-gray-900">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h1 className="text-3xl font-black text-white">{currentParty.name}</h1>
+                                    <p className="text-green-400 font-mono text-xl">CODE: {partyCode}</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowQR(!showQR)}
+                                        className="bg-green-500 text-black px-5 py-2 rounded-lg font-bold hover:bg-green-400 flex items-center gap-2"
+                                    >
+                                        <QRCodeIcon />
+                                        QR Code
+                                    </button>
+                                    <button
+                                        onClick={endParty}
+                                        className="bg-red-500/20 text-red-400 border border-red-500 px-5 py-2 rounded-lg font-bold hover:bg-red-500/30"
+                                    >
+                                        Terminer
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+                                    <div className="text-xs text-gray-400 mb-1">Total votes</div>
+                                    <div className="text-3xl font-bold text-white">{totalVotes}</div>
+                                </div>
+                                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+                                    <div className="text-xs text-gray-400 mb-1">Top morceau</div>
+                                    <div className="text-lg font-bold text-white truncate">{sortedSongs[0]?.title || '-'}</div>
+                                </div>
+                                <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+                                    <div className="text-xs text-gray-400 mb-1">En lecture</div>
+                                    <div className="text-sm font-bold text-green-400">{currentlyPlaying ? '▶ En cours' : 'Aucune'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* QR Code Modal */}
+                    {showQR && (
+                        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-6" onClick={() => setShowQR(false)}>
+                            <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full border border-gray-800" onClick={(e) => e.stopPropagation()}>
+                                <h2 className="text-2xl font-black text-white mb-4 text-center">Scanne pour voter</h2>
+                                <div className="bg-black p-6 rounded-xl mb-4">
+                                    <img src={qrCodeUrl} alt="QR Code" className="w-full" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-green-400 font-mono text-3xl font-bold mb-2">{partyCode}</p>
+                                    <p className="text-gray-400 text-sm">Code à entrer manuellement</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Liste des chansons */}
+                    <div className="max-w-7xl mx-auto px-6 py-8">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-white">Playlist • {songs.length} morceaux</h2>
+                            <div className="text-sm text-gray-500 pulse-anim">● Live</div>
+                        </div>
+
+                        <div className="space-y-2">
+                            {sortedSongs.map((song, index) => {
+                                const isTop3 = index < 3;
+                                const probability = totalVotes > 0 ? ((song.votes / totalVotes) * 100).toFixed(1) : 0;
+                                
+                                return (
+                                    <div
+                                        key={song.id}
+                                        className={`bg-gray-900/30 rounded-lg p-4 transition-all hover:bg-gray-800/50 slide-in ${
+                                            isTop3 ? 'border-2 border-green-500/50' : 'border border-gray-900'
+                                        } ${currentlyPlaying === song.id ? 'ring-2 ring-green-500' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-shrink-0 w-8 text-center">
+                                                <div className={`text-lg font-bold ${
+                                                    isTop3 ? 'text-green-400' : 'text-gray-500'
+                                                }`}>
+                                                    {index + 1}
+                                                </div>
+                                            </div>
+
+                                            <div className={`flex-shrink-0 w-12 h-12 rounded flex items-center justify-center font-black text-lg ${
+                                                isTop3 ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-600'
+                                            }`}>
+                                                {song.title.charAt(0)}
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-base font-semibold text-white truncate">
+                                                    {song.title}
+                                                </h3>
+                                                <p className="text-sm text-gray-400 truncate">{song.artist}</p>
+                                            </div>
+
+                                            <div className="text-center px-4">
+                                                <div className="text-2xl font-black text-white">{song.votes}</div>
+                                                <div className="text-xs text-gray-500">votes</div>
+                                            </div>
+
+                                            <div className="text-center px-4">
+                                                <div className="text-lg font-bold text-green-400">{probability}%</div>
+                                                <div className="text-xs text-gray-500">chance</div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => playOnSpotify(song)}
+                                                className="bg-green-500 text-black px-6 py-3 rounded-full font-bold hover:bg-green-400 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
+                                            >
+                                                <Play />
+                                                Lancer
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-3 bg-gray-800 rounded-full h-2 overflow-hidden">
+                                            <div
+                                                className="bg-green-500 h-full transition-all duration-700"
+                                                style={{ width: `${Math.min(probability * 2, 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DJApp />);
+    </script>
+</body>
+</html>
